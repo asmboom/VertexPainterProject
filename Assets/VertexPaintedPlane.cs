@@ -15,19 +15,11 @@ public class VertexPaintedPlane : MonoBehaviour {
     {
         Mesh mesh = meshFilter.mesh;
         Color[] colors = new Color[mesh.vertices.Length];
+        Debug.Log(mesh.vertices.Length);
         for (int i = 0; i < colors.Length; i++)
             colors[i] = new Color(1.0f, 1.0f, 1.0f);
         mesh.colors = colors;
+        Debug.Log(mesh.colors.Length);
+
     }
-	/*void Update () {
-        if (Input.GetKey(KeyCode.Mouse0))
-        {
-            RaycastHit hitInfo;
-            if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out hitInfo, Mathf.Infinity))
-            {
-                int triangle = hitInfo.triangleIndex;
-                print(triangle);
-            }
-        }
-	}*/
 }

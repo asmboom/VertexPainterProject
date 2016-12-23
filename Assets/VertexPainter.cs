@@ -4,31 +4,36 @@ using UnityEngine;
 
 public class VertexPainter : MonoBehaviour {
 
+    SphereCollider col;
     void Start()
     {
-
+        col = GetComponent<SphereCollider>();
     }
-    void Update()
+    void SetVertexColor(int triangle, Transform _target,Vector3 point)
     {
 
-    }
-    void SetVertexColor(List<int> triangles,Mesh _targetMesh)
-    {
-        if (triangles == null || triangles.Count <= 0)
-            return;
-        Mesh mesh = _targetMesh;
+        Mesh mesh = _target.GetComponent<MeshFilter>().mesh;
         Color[] colors = mesh.colors;
-        foreach (int triangle in triangles.ToArray())
+        int closestVertex = -1;
+        float dist = 1000f;
+        for(int i=0;i<3;i++)
         {
-            colors[mesh.triangles[triangle * 3]] = new Color(0.0f, 0.0f, 0.0f);
-            colors[mesh.triangles[triangle * 3 + 1]] = new Color(0.0f, 0.0f, 0.0f);
-            colors[mesh.triangles[triangle * 3 + 2]] = new Color(0.0f, 0.0f, 0.0f);
+            float dis = Vector3.Distance(point, _target.TransformPoint(mesh.vertices[mesh.triangles[triangle * 3 + i]]));
+            if (dis < dist)
+            {
+                dist = dis;
+                closestVertex = i;
+            }
         }
-        mesh.colors = colors;
+        if (closestVertex >= 0)
+        {
+            colors[mesh.triangles[triangle * 3+closestVertex]] = new Color(0.0f, 0.0f, 0.0f);
+            mesh.colors = colors;
+        }
     }
     void OnCollisionStay(Collision col)
     {
-        List<int> triangles = new List<int>();
+        int triangle;
 
         if (col.gameObject.layer == LayerMask.NameToLayer("ground"))
         {
@@ -38,12 +43,11 @@ public class VertexPainter : MonoBehaviour {
                 Ray ray = new Ray(P.point + P.normal * 0.05f, -P.normal);
                 if (Physics.Raycast(ray, out hit, 0.1f, LayerMask.GetMask("ground")))
                 {
-                    Debug.Log(hit.triangleIndex);
-                    triangles.Add(hit.triangleIndex);
+                    triangle = hit.triangleIndex;
+                    SetVertexColor(triangle, hit.transform,P.point);
+                    break;
                 }
             }
-            if (triangles.Count > 0)
-                SetVertexColor(triangles, col.gameObject.GetComponent<MeshFilter>().mesh);
         }
     }
 }

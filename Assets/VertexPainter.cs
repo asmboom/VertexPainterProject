@@ -4,13 +4,6 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-struct ColoredVertexData
-{
-    public Mesh baseMesh;
-    public int vertexIndex;
-    public float coloredTime;
-}
-
 public class VertexPainter : MonoBehaviour {
 
     SphereCollider col;
@@ -21,10 +14,8 @@ public class VertexPainter : MonoBehaviour {
     [SerializeField]
     float radius;
     Vector3 lastPosition;
-
-    List<ColoredVertexData> coloredVertices;
-
-    const float VertexColoredTime = 10.0f;
+    [SerializeField]
+    float vertexColoredTime = 10.0f;
 
     void Start()
     {
@@ -51,24 +42,22 @@ public class VertexPainter : MonoBehaviour {
         if (closestVertex >= 0)
         {
             int[] verticesIndexes;
-            GetVertexInRadius(mesh, out verticesIndexes, closestVertex, _radius);
+            GetVertexInRadius(plane,mesh, out verticesIndexes, closestVertex, _radius);
             Vector3 bPos = mesh.vertices[closestVertex];
             foreach (int index in verticesIndexes)
             {
                 float distance = Vector3.Distance(bPos, mesh.vertices[index]);
                 float colorAmount = 1 - distance / _radius;
 
-                if (colorAmount > plane.vertexColorInfo[index].coloredAmount)
+                if (colorAmount >= plane.vertexColorInfo[index].coloredAmount)
                 {
-                    plane.vertexColorInfo[index].coloredAmount = colorAmount;
+                    plane.SetColoredInfo(index, colorAmount, vertexColoredTime);
+
+                    //plane.vertexColorInfo[index].coloredAmount = colorAmount;
                     Color lerpedColor = Color.Lerp(plane.vertexColorInfo[index].baseColor, vertexColor, colorAmount);
                     colors[index] = lerpedColor;
                 }
-                else colorAmount = plane.vertexColorInfo[index].coloredAmount;
-
-                //Set Colored Vertex
-
-
+                //else colorAmount = plane.vertexColorInfo[index].coloredAmount;
             }
             mesh.colors = colors;
         }
@@ -127,22 +116,31 @@ public class VertexPainter : MonoBehaviour {
         }
         return -1;
     }
-    void GetVertexInRadius(Mesh targetMesh, out int[] findedVertices,int baseVertex,float _radius)
+    void SearchNearVertex(VertexPaintedPlane plane, Mesh targetMesh, ref List<int> findedVertices, int baseVertex, int nextVertex, float _radius, ref bool[] visited)
     {
-        Dictionary<int,float> vData = new Dictionary<int, float>();
+        if (visited[nextVertex])
+            return;
+        visited[nextVertex] = true;
         Vector3 basePosition = targetMesh.vertices[baseVertex];
-        for(int i=0;i<targetMesh.vertices.Length;i++)
+        float distance = Vector3.Distance(basePosition, targetMesh.vertices[nextVertex]);
+        if (distance > _radius)
         {
-            float distance = Vector3.Distance(basePosition, targetMesh.vertices[i]);
-            if(distance<=_radius)
-            {
-                vData.Add(i,distance);
-            }
+            return;
         }
-        var items = from pair in vData
-                    orderby pair.Value ascending
-                    select pair;
-        findedVertices = items.ToDictionary(p => p.Key, p => p.Value).Keys.ToArray();
+        findedVertices.Add(nextVertex);
+        foreach (int v in plane.nearVertices[nextVertex])
+        {
+            SearchNearVertex(plane, targetMesh, ref findedVertices, baseVertex, v, radius,ref visited);
+        }
+    }
+    void GetVertexInRadius(VertexPaintedPlane plane,Mesh targetMesh, out int[] findedVertices,int baseVertex,float _radius)
+    {
+        float time = Time.deltaTime;
+        List<int> vIndexes = new List<int>();
+        Vector3 basePosition = targetMesh.vertices[baseVertex];
+        bool[] visited = new bool[targetMesh.vertices.Length];
+        SearchNearVertex(plane, targetMesh, ref vIndexes, baseVertex, baseVertex, radius,ref visited);
+        findedVertices = vIndexes.ToArray();
     }
     void Update()
     {
@@ -151,12 +149,13 @@ public class VertexPainter : MonoBehaviour {
         {
             if (Physics.SphereCast(transform.position + Vector3.up * 1, col.radius, Vector3.up * -1, out hit, Mathf.Infinity, LayerMask.GetMask("ground")))
             {
-                SetVertexColor(hit.transform, hit.triangleIndex, hit.point);
+                SetVertexColorInRadius(hit.transform, hit.triangleIndex, hit.point, radius);
+                //SetVertexColor(hit.transform, hit.triangleIndex, hit.point);
                 //SetVertexHeight(hit.transform,hit.triangleIndex, hit.point, vertexHeight);
             }
         }
 
-        if (Input.GetKeyDown(KeyCode.Mouse0))
+        if (Input.GetKey(KeyCode.Mouse0))
         {
             if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out hit, Mathf.Infinity, LayerMask.GetMask("ground")))
             {

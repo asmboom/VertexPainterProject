@@ -20,7 +20,7 @@ public class CharacterInput : MonoBehaviour {
             axis.y = 0;
             axis.Normalize();
             movement.RotateTo(Quaternion.LookRotation(axis), 40);
-            movement.Move(axis, 6, 0.5f);
+            movement.Move(axis, 3, 0.1f);
         }
         else
         {

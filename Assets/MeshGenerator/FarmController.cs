@@ -40,6 +40,7 @@ public class FarmController : MonoBehaviour {
                                                        // 해당 함수에 대해 쉬운 설명이 가능하신분은 덧글로 부탁드립니다.
         generatedMesh.RecalculateNormals();             // 면의 노말(방향)을 확립(?)합니다.
 
+
         meshFilter.mesh = generatedMesh;
         meshCollider.sharedMesh = generatedMesh;
 

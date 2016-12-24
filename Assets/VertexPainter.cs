@@ -1,6 +1,15 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
+
+struct ColoredVertexData
+{
+    public Mesh baseMesh;
+    public int vertexIndex;
+    public float coloredTime;
+}
 
 public class VertexPainter : MonoBehaviour {
 
@@ -9,60 +18,83 @@ public class VertexPainter : MonoBehaviour {
     Color vertexColor;
     [SerializeField]
     float vertexHeight;
+    [SerializeField]
+    float radius;
+    Vector3 lastPosition;
+
+    List<ColoredVertexData> coloredVertices;
+
+    const float VertexColoredTime = 10.0f;
+
     void Start()
     {
         col = GetComponent<SphereCollider>();
     }
-    void SetVertexColor(int triangle, Transform _target,Vector3 point)
+    void SetVertexColor(Transform _target,int triangle,Vector3 worldPosition)
     {
 
         Mesh mesh = _target.GetComponent<MeshFilter>().mesh;
         Color[] colors = mesh.colors;
-        int closestVertex = -1;
-        float dist = 1000f;
-        for(int i=0;i<3;i++)
-        {
-            float dis = Vector3.Distance(point, _target.TransformPoint(mesh.vertices[mesh.triangles[triangle * 3 + i]]));
-            if (dis < dist)
-            {
-                dist = dis;
-                closestVertex = i;
-            }
-        }
+        int closestVertex = GetClosestVertex(mesh, _target.TransformPoint(worldPosition), triangle);
         if (closestVertex >= 0)
         {
-            colors[mesh.triangles[triangle * 3+closestVertex]] = vertexColor;
+            colors[closestVertex] = vertexColor;
             mesh.colors = colors;
         }
     }
-    void SetVertexHeight(int triangle, Transform _target, Vector3 point,float height)
+    void SetVertexColorInRadius(Transform _target, int triangle, Vector3 worldPosition,float _radius)
     {
-
         Mesh mesh = _target.GetComponent<MeshFilter>().mesh;
-        int closestVertex = -1;
-        float dist = 1000f;
-        for (int i = 0; i < 3; i++)
+        VertexPaintedPlane plane=_target.GetComponent<VertexPaintedPlane>();
+        Color[] colors = mesh.colors;
+        int closestVertex = GetClosestVertex(mesh, _target.TransformPoint(worldPosition), triangle);
+        if (closestVertex >= 0)
         {
-            float dis = Vector3.Distance(point, _target.TransformPoint(mesh.vertices[mesh.triangles[triangle * 3 + i]]));
-            if (dis < dist)
+            int[] verticesIndexes;
+            GetVertexInRadius(mesh, out verticesIndexes, closestVertex, _radius);
+            Vector3 bPos = mesh.vertices[closestVertex];
+            foreach (int index in verticesIndexes)
             {
-                dist = dis;
-                closestVertex = i;
+                float distance = Vector3.Distance(bPos, mesh.vertices[index]);
+                float colorAmount = 1 - distance / _radius;
+
+                if (colorAmount > plane.vertexColorInfo[index].coloredAmount)
+                {
+                    plane.vertexColorInfo[index].coloredAmount = colorAmount;
+                    Color lerpedColor = Color.Lerp(plane.vertexColorInfo[index].baseColor, vertexColor, colorAmount);
+                    colors[index] = lerpedColor;
+                }
+                else colorAmount = plane.vertexColorInfo[index].coloredAmount;
+
+                //Set Colored Vertex
+
+
             }
+            mesh.colors = colors;
         }
+    }
+    void SetVertexHeight(Transform _target, int triangle, Vector3 worldPosition, float height)
+    {
+        Mesh mesh = _target.GetComponent<MeshFilter>().mesh;
+        int closestVertex = GetClosestVertex(mesh, _target.TransformPoint(worldPosition), triangle);
         if (closestVertex >= 0)
         {
             Vector3[] vertices = mesh.vertices;
-            vertices[mesh.triangles[triangle * 3 + closestVertex]].y += height;
+            vertices[closestVertex].y += height;
             mesh.vertices = vertices;
         }
     }
     void OnCollisionStay(Collision col)
     {
+        return;
         int triangle;
-
         if (col.gameObject.layer == LayerMask.NameToLayer("ground"))
         {
+            if (Vector3.Distance(transform.position,lastPosition)<0.2f)
+            {
+                return;
+            }
+            lastPosition = transform.position;
             foreach (ContactPoint P in col.contacts)
             {
                 RaycastHit hit;
@@ -70,28 +102,73 @@ public class VertexPainter : MonoBehaviour {
                 if (Physics.Raycast(ray, out hit, 0.1f, LayerMask.GetMask("ground")))
                 {
                     triangle = hit.triangleIndex;
-                    SetVertexColor(triangle, hit.transform,P.point);
-                    SetVertexHeight(hit.triangleIndex, hit.transform, hit.point, vertexHeight);
+                    SetVertexColorInRadius(hit.transform, triangle, hit.point, radius);
                     break;
                 }
             }
         }
     }
+    int GetClosestVertex(Mesh targetMesh, Vector3 localPosition,int triangleIndex)
+    {
+        int closestVertex = -1;
+        float dist = 1000f;
+        for (int i = 0; i < 3; i++)
+        {
+            float dis = Vector3.Distance(localPosition, targetMesh.vertices[targetMesh.triangles[triangleIndex * 3 + i]]);
+            if (dis < dist)
+            {
+                dist = dis;
+                closestVertex = targetMesh.triangles[triangleIndex * 3 + i];
+            }
+        }
+        if (closestVertex >= 0)
+        {
+            return closestVertex;
+        }
+        return -1;
+    }
+    void GetVertexInRadius(Mesh targetMesh, out int[] findedVertices,int baseVertex,float _radius)
+    {
+        Dictionary<int,float> vData = new Dictionary<int, float>();
+        Vector3 basePosition = targetMesh.vertices[baseVertex];
+        for(int i=0;i<targetMesh.vertices.Length;i++)
+        {
+            float distance = Vector3.Distance(basePosition, targetMesh.vertices[i]);
+            if(distance<=_radius)
+            {
+                vData.Add(i,distance);
+            }
+        }
+        var items = from pair in vData
+                    orderby pair.Value ascending
+                    select pair;
+        findedVertices = items.ToDictionary(p => p.Key, p => p.Value).Keys.ToArray();
+    }
     void Update()
     {
         RaycastHit hit;
-        if (Physics.SphereCast(transform.position+Vector3.up* 1, col.radius,Vector3.up*-1,out hit, Mathf.Infinity, LayerMask.GetMask("ground")))
+        if (transform.position != lastPosition)
         {
-            SetVertexColor(hit.triangleIndex, hit.transform, hit.point);
-            SetVertexHeight(hit.triangleIndex, hit.transform, hit.point, vertexHeight);
+            if (Physics.SphereCast(transform.position + Vector3.up * 1, col.radius, Vector3.up * -1, out hit, Mathf.Infinity, LayerMask.GetMask("ground")))
+            {
+                SetVertexColor(hit.transform, hit.triangleIndex, hit.point);
+                //SetVertexHeight(hit.transform,hit.triangleIndex, hit.point, vertexHeight);
+            }
         }
-        if (Input.GetKey(KeyCode.Mouse0))
+
+        if (Input.GetKeyDown(KeyCode.Mouse0))
         {
             if (Physics.Raycast(Camera.main.ScreenPointToRay(Input.mousePosition), out hit, Mathf.Infinity, LayerMask.GetMask("ground")))
             {
-                SetVertexColor(hit.triangleIndex, hit.transform, hit.point);
-                SetVertexHeight(hit.triangleIndex, hit.transform, hit.point,vertexHeight);
+                SetVertexColorInRadius(hit.transform, hit.triangleIndex, hit.point,radius);
+                //SetVertexHeight(hit.triangleIndex, hit.transform, hit.point,vertexHeight);
             }
+
         }
+    }
+    void LateUpdate()
+    {
+
+        lastPosition = transform.position;
     }
 }

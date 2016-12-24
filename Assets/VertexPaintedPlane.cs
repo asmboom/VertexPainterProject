@@ -2,24 +2,29 @@
 using System.Collections.Generic;
 using UnityEngine;
 // VertexColor Change
-public class VertexPaintedPlane : MonoBehaviour {
-    
-    public MeshFilter meshFilter;
-
-	void Start () {
-        meshFilter = GetComponent<MeshFilter>();
+public struct VertexColorInfo
+{
+    public Color baseColor;
+    public float coloredAmount;
+}
+public class VertexPaintedPlane : MonoBehaviour
+{    
+    public Mesh mesh;
+    public VertexColorInfo[] vertexColorInfo;
+    void Start () {
         Init();
 	}
 
     void Init()
     {
-        Mesh mesh = meshFilter.mesh;
-        Color[] colors = new Color[mesh.vertices.Length];
-        Debug.Log(mesh.vertices.Length);
-        for (int i = 0; i < colors.Length; i++)
-            colors[i] = new Color(1.0f, 1.0f, 1.0f);
+        Mesh mesh = GetComponent<MeshFilter>().mesh;
+        vertexColorInfo = new VertexColorInfo[mesh.vertices.Length];
+        Color[] colors = new Color[vertexColorInfo.Length];
+        for (int i = 0; i < vertexColorInfo.Length; i++)
+        {
+            vertexColorInfo[i].baseColor = new Color(1.0f, 1.0f, 1.0f);
+            colors[i] = vertexColorInfo[i].baseColor;
+        }
         mesh.colors = colors;
-        Debug.Log(mesh.colors.Length);
-
     }
 }

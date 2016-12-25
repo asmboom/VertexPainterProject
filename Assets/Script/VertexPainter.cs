@@ -33,16 +33,17 @@ public class VertexPainter : MonoBehaviour {
             mesh.colors = colors;
         }
     }
-    void SetVertexColorInRadius(Transform _target, int triangle, Vector3 worldPosition,float _radius)
+    void SetVertexColorInRadius(Transform _target, int triangle, Vector3 worldPosition, float _radius)
     {
         Mesh mesh = _target.GetComponent<MeshFilter>().mesh;
-        VertexPaintedPlane plane=_target.GetComponent<VertexPaintedPlane>();
+        VertexPaintedPlane plane = _target.GetComponent<VertexPaintedPlane>();
         Color[] colors = mesh.colors;
+        Vector3[] vertices = mesh.vertices;
         int closestVertex = GetClosestVertex(mesh, _target.TransformPoint(worldPosition), triangle);
         if (closestVertex >= 0)
         {
             int[] verticesIndexes;
-            GetVertexInRadius(plane,mesh, out verticesIndexes, closestVertex, _radius);
+            GetVertexInRadius(plane, mesh, out verticesIndexes, closestVertex, _radius);
             Vector3 bPos = mesh.vertices[closestVertex];
             foreach (int index in verticesIndexes)
             {
@@ -52,15 +53,23 @@ public class VertexPainter : MonoBehaviour {
                 if (colorAmount >= plane.vertexColorInfo[index].coloredAmount)
                 {
                     plane.SetColoredInfo(index, colorAmount, vertexColoredTime);
-
+                    SetVertexHeight(mesh, plane,index, vertexHeight*colorAmount, ref vertices,false);
                     //plane.vertexColorInfo[index].coloredAmount = colorAmount;
                     Color lerpedColor = Color.Lerp(plane.vertexColorInfo[index].baseColor, vertexColor, colorAmount);
                     colors[index] = lerpedColor;
                 }
                 //else colorAmount = plane.vertexColorInfo[index].coloredAmount;
             }
+            mesh.vertices = vertices;
             mesh.colors = colors;
         }
+    }
+    void SetVertexHeight(Mesh _target, VertexPaintedPlane plane,int vertex, float height,ref Vector3[] vertices,bool update=true)
+    {
+        Mesh mesh = _target;
+        vertices[vertex].y = plane.vertexColorInfo[vertex].height+height;
+        if(update)
+            mesh.vertices = vertices;
     }
     void SetVertexHeight(Transform _target, int triangle, Vector3 worldPosition, float height)
     {
@@ -145,7 +154,7 @@ public class VertexPainter : MonoBehaviour {
     void Update()
     {
         RaycastHit hit;
-        if (transform.position != lastPosition)
+        if (true/*transform.position != lastPosition*/)
         {
             if (Physics.SphereCast(transform.position + Vector3.up * 1, col.radius, Vector3.up * -1, out hit, Mathf.Infinity, LayerMask.GetMask("ground")))
             {

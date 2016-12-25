@@ -8,6 +8,7 @@ public struct VertexColorInfo
 {
     public Color baseColor;
     public float coloredAmount;
+    public float height;
 }
 [RequireComponent(typeof(MeshCollider))]
 public class VertexPaintedPlane : MonoBehaviour
@@ -32,6 +33,7 @@ public class VertexPaintedPlane : MonoBehaviour
             nearVertices[i] = new List<int>();
             vertexColorInfo[i].baseColor = new Color(1.0f, 1.0f, 1.0f);
             colors[i] = vertexColorInfo[i].baseColor;
+            vertexColorInfo[i].height = mesh.vertices[i].y;
         }
         mesh.colors = colors;
         for (int i=0; i < mesh.triangles.Length/3;i++)
@@ -60,8 +62,10 @@ public class VertexPaintedPlane : MonoBehaviour
         if(coloredVertices.Count>0)
         {
             bool changed = false;
+            bool changedHeight = false;
             Color[] colors = mesh.colors;
-            foreach(var key in coloredVertices.Keys.ToList())
+            Vector3[] vertices = mesh.vertices;
+            foreach (var key in coloredVertices.Keys.ToList())
             {
                 coloredVertices[key] = coloredVertices[key] - Time.deltaTime;
                 if (coloredVertices[key] <= 0)
@@ -73,6 +77,7 @@ public class VertexPaintedPlane : MonoBehaviour
                     //if (lerpedColor == vertexColorInfo[key].baseColor)
                     {
                         colors[key] = vertexColorInfo[key].baseColor;
+                        vertices[key].y = vertexColorInfo[key].height;
                         vertexColorInfo[key].coloredAmount = 0.0f;
                         coloredVertices.Remove(key);
                     }
@@ -81,7 +86,10 @@ public class VertexPaintedPlane : MonoBehaviour
                 }
             }
             if (changed)
+            {
                 mesh.colors = colors;
+                mesh.vertices = vertices;
+            }
         }
     }
 }

@@ -24,7 +24,7 @@ public class VertexPainter : MonoBehaviour {
     void SetVertexColor(Transform _target,int triangle,Vector3 worldPosition)
     {
 
-        Mesh mesh = _target.GetComponent<MeshFilter>().mesh;
+        Mesh mesh = _target.GetComponent<MeshFilter>().sharedMesh;
         Color[] colors = mesh.colors;
         int closestVertex = GetClosestVertex(mesh, _target.TransformPoint(worldPosition), triangle);
         if (closestVertex >= 0)
@@ -35,7 +35,7 @@ public class VertexPainter : MonoBehaviour {
     }
     void SetVertexColorInRadius(Transform _target, int triangle, Vector3 worldPosition, float _radius)
     {
-        Mesh mesh = _target.GetComponent<MeshFilter>().mesh;
+        Mesh mesh = _target.GetComponent<MeshFilter>().sharedMesh;
         VertexPaintedPlane plane = _target.GetComponent<VertexPaintedPlane>();
         Color[] colors = mesh.colors;
         Vector3[] vertices = mesh.vertices;
@@ -53,7 +53,7 @@ public class VertexPainter : MonoBehaviour {
                 if (colorAmount >= plane.vertexColorInfo[index].coloredAmount)
                 {
                     plane.SetColoredInfo(index, colorAmount, vertexColoredTime);
-                    SetVertexHeight(mesh, plane,index, vertexHeight*colorAmount, ref vertices,false);
+                    //SetVertexHeight(mesh, plane,index, vertexHeight*colorAmount, ref vertices,false);
                     //plane.vertexColorInfo[index].coloredAmount = colorAmount;
                     Color lerpedColor = Color.Lerp(plane.vertexColorInfo[index].baseColor, vertexColor, colorAmount);
                     colors[index] = lerpedColor;
@@ -73,7 +73,7 @@ public class VertexPainter : MonoBehaviour {
     }
     void SetVertexHeight(Transform _target, int triangle, Vector3 worldPosition, float height)
     {
-        Mesh mesh = _target.GetComponent<MeshFilter>().mesh;
+        Mesh mesh = _target.GetComponent<MeshFilter>().sharedMesh;
         int closestVertex = GetClosestVertex(mesh, _target.TransformPoint(worldPosition), triangle);
         if (closestVertex >= 0)
         {
@@ -137,7 +137,7 @@ public class VertexPainter : MonoBehaviour {
             return;
         }
         findedVertices.Add(nextVertex);
-        foreach (int v in plane.nearVertices[nextVertex])
+        foreach (int v in plane.vertexColorInfo[nextVertex].nearVertices)
         {
             SearchNearVertex(plane, targetMesh, ref findedVertices, baseVertex, v, radius,ref visited);
         }

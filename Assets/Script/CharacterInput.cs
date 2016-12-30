@@ -19,7 +19,7 @@ public class CharacterInput : MonoBehaviour {
             axis = Camera.main.transform.TransformVector(axis);
             axis.y = 0;
             axis.Normalize();
-            movement.RotateTo(Quaternion.LookRotation(axis), 40);
+            //movement.RotateTo(Quaternion.LookRotation(axis), 40);
             movement.Move(axis, 3, 0.1f);
         }
         else

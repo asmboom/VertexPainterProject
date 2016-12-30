@@ -9,31 +9,37 @@ public struct VertexColorInfo
     public Color baseColor;
     public float coloredAmount;
     public float height;
+    public List<int> nearVertices;
 }
 [RequireComponent(typeof(MeshCollider))]
 public class VertexPaintedPlane : MonoBehaviour
 {
     public Mesh mesh;
     public VertexColorInfo[] vertexColorInfo;
-    public List<int>[] nearVertices;
-    public Dictionary<int,float> coloredVertices;
+    //public List<int>[] nearVertices;
+    public Dictionary<int,float> coloredVertices=new Dictionary<int, float>();
+    public bool isInitiallized;
+    public Color baseColor;
     void Awake () {
-        Init();
+        if(!isInitiallized)
+            Init();
 	}
 
-    void Init()
+    public void Init()
     {
-        mesh = GetComponent<MeshFilter>().mesh;
+        isInitiallized = true;
+        mesh = GetComponent<MeshFilter>().sharedMesh;
         vertexColorInfo = new VertexColorInfo[mesh.vertices.Length];
         Color[] colors = new Color[vertexColorInfo.Length];
         coloredVertices = new Dictionary<int, float>();
-        nearVertices = new List<int>[mesh.vertices.Length];
+        //nearVertices = new List<int>[mesh.vertices.Length];
         for (int i = 0; i < vertexColorInfo.Length; i++)
         {
-            nearVertices[i] = new List<int>();
-            vertexColorInfo[i].baseColor = new Color(1.0f, 1.0f, 1.0f);
+            //nearVertices[i] = new List<int>();
+            vertexColorInfo[i].baseColor = baseColor;
             colors[i] = vertexColorInfo[i].baseColor;
             vertexColorInfo[i].height = mesh.vertices[i].y;
+            vertexColorInfo[i].nearVertices = new List<int>();
         }
         mesh.colors = colors;
         for (int i=0; i < mesh.triangles.Length/3;i++)
@@ -41,12 +47,18 @@ public class VertexPaintedPlane : MonoBehaviour
             int a = mesh.triangles[i * 3];
             int b = mesh.triangles[i * 3 + 1];
             int c = mesh.triangles[i * 3 + 2];
-            nearVertices[a].Add(b);
-            nearVertices[a].Add(c);
-            nearVertices[b].Add(b);
-            nearVertices[b].Add(c);
-            nearVertices[c].Add(a);
-            nearVertices[c].Add(b);
+            if(vertexColorInfo[a].nearVertices.FindIndex(item => item == b )==-1)
+                vertexColorInfo[a].nearVertices.Add(b);
+            if (vertexColorInfo[a].nearVertices.FindIndex(item => item == c) == -1)
+                vertexColorInfo[a].nearVertices.Add(c);
+            if (vertexColorInfo[b].nearVertices.FindIndex(item => item == a) == -1)
+                vertexColorInfo[b].nearVertices.Add(a);
+            if (vertexColorInfo[b].nearVertices.FindIndex(item => item == c) == -1)
+                vertexColorInfo[b].nearVertices.Add(c);
+            if (vertexColorInfo[c].nearVertices.FindIndex(item => item == a) == -1)
+                vertexColorInfo[c].nearVertices.Add(a);
+            if (vertexColorInfo[c].nearVertices.FindIndex(item => item == b) == -1)
+                vertexColorInfo[c].nearVertices.Add(b);
         }
     }
     public void SetColoredInfo(int index,float _coloredAmount,float _coloredTime)
@@ -62,7 +74,6 @@ public class VertexPaintedPlane : MonoBehaviour
         if(coloredVertices.Count>0)
         {
             bool changed = false;
-            bool changedHeight = false;
             Color[] colors = mesh.colors;
             Vector3[] vertices = mesh.vertices;
             foreach (var key in coloredVertices.Keys.ToList())
@@ -70,10 +81,10 @@ public class VertexPaintedPlane : MonoBehaviour
                 coloredVertices[key] = coloredVertices[key] - Time.deltaTime;
                 if (coloredVertices[key] <= 0)
                 {
-                    Color lerpedColor = Color.LerpUnclamped(colors[key], vertexColorInfo[key].baseColor, Time.deltaTime*5);
+                    Color lerpedColor = Color.Lerp(colors[key], vertexColorInfo[key].baseColor, Time.deltaTime*5);
 
                     float distance = Vector3.Distance(new Vector3(lerpedColor.r, lerpedColor.g, lerpedColor.b), new Vector3(vertexColorInfo[key].baseColor.r, vertexColorInfo[key].baseColor.g, vertexColorInfo[key].baseColor.b));
-                    if(distance<0.1f)
+                    if (distance<0.2f)
                     //if (lerpedColor == vertexColorInfo[key].baseColor)
                     {
                         colors[key] = vertexColorInfo[key].baseColor;
